@@ -26,10 +26,37 @@ var (
 		// TODO value prompt
 		// TODO encoding utilities (e.g. toBinary)
 		// TODO GET, POST utilities
-		// TODO Hostname(Also accesible through $HOSTNAME), interface IP addr, etc.
+		// TODO Hostname(Also accessible through $HOSTNAME), interface IP addr, etc.
 		// TODO add validate for custom regex and expose validate package
-		"env":      os.Getenv,
-		"time":     CurrentTimeInFmt,
+		"env":  os.Getenv,
+		"time": CurrentTimeInFmt,
+		"now": func() time.Time {
+			return time.Now()
+		},
+		"addYear": func(t time.Time) time.Time {
+			return t.AddDate(1, 0, 0)
+		},
+		"timeToRfc3339": func(t time.Time) string {
+			return t.Format(time.RFC3339)
+		},
+		"timeToDay": func(t time.Time) string {
+			return strconv.Itoa(t.Day())
+		},
+		"timeToHour": func(t time.Time) string {
+			return strconv.Itoa(t.Hour())
+		},
+		"timeToMinute": func(t time.Time) string {
+			return strconv.Itoa(t.Minute())
+		},
+		"timeToMonth": func(t time.Time) string {
+			return strconv.Itoa(int(t.Month()))
+		},
+		"timeToSecond": func(t time.Time) string {
+			return strconv.Itoa(t.Second())
+		},
+		"timeToYear": func(t time.Time) string {
+			return strconv.Itoa(t.Year())
+		},
 		"hostname": func() string { return os.Getenv("HOSTNAME") },
 		"username": func() string {
 			t, err := user.Current()
