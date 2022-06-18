@@ -36,6 +36,21 @@ var (
 		"addYear": func(t time.Time) time.Time {
 			return t.AddDate(1, 0, 0)
 		},
+		"addMonth": func(t time.Time) time.Time {
+			return t.AddDate(0, 1, 0)
+		},
+		"addDay": func(t time.Time) time.Time {
+			return t.AddDate(0, 0, 1)
+		},
+		"modifyYear": func(count int, t time.Time) time.Time {
+			return t.AddDate(count, 0, 0)
+		},
+		"modifyMonth": func(count int, t time.Time) time.Time {
+			return t.AddDate(0, count, 0)
+		},
+		"modifyDay": func(count int, t time.Time) time.Time {
+			return t.AddDate(0, 0, count)
+		},
 		"timeToRfc3339": func(t time.Time) string {
 			return t.Format(time.RFC3339)
 		},

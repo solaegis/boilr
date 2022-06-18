@@ -16,7 +16,7 @@ const (
 	AppName = "boilr"
 
 	// Version of the application
-	Version = "1.1.1"
+	Version = "1.1.2"
 
 	// ConfigDirPath is the configuration directory of the application
 	ConfigDirPath = ".config/boilr"
