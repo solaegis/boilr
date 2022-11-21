@@ -7,8 +7,8 @@
 .PHONY: help
 .DEFAULT_GOAL := help
 
-VERSION := 1.1.2
-SHA256SUM_MAC=$(shell sha256sum boilr-${VERSION}-darwin_amd6.tgz | cut -d' ' -f1 2>&1)
+VERSION := 1.1.3
+SHA256SUM_MAC=$(shell sha256sum boilr-${VERSION}-darwin_amd64.tgz | cut -d' ' -f1 2>&1)
 
 define FORMULA
 class Boilr < Formula
@@ -39,7 +39,7 @@ precommit-run: ## run all pre-commit hooks
 build-mac: ## build the boilr executable
 	@go mod tidy
 	@go build
-	@tar czf boilr-${VERSION}-darwin_amd6.tgz ./boilr
+	@tar czf boilr-${VERSION}-darwin_amd64.tgz ./boilr
 	@mv boilr boilr-mac
 	
 build-linux: ## build the boilr executable

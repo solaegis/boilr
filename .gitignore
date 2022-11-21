@@ -29,3 +29,6 @@ vendor
 
 # don't accidentally commit a build of main
 boilr
+boilr-mac
+*.tgz
+boilr.rb

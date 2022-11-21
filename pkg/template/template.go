@@ -24,6 +24,9 @@ type Interface interface {
 	// If used, the template will execute using default values.
 	UseDefaultValues()
 
+	// If used, the template will execute using CachaedValuesFromJson.
+	CachaedValuesFromJson(string) error
+
 	// Returns the metadata of the template.
 	Info() Metadata
 }
@@ -38,7 +41,6 @@ func Get(path string) (Interface, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	// TODO make context optional
 	ctxt, err := func(fname string) (map[string]interface{}, error) {
 		f, err := os.Open(fname)
@@ -88,21 +90,55 @@ func Get(path string) (Interface, error) {
 	}()
 
 	return &dirTemplate{
-		Context:  ctxt,
-		FuncMap:  FuncMap,
-		Path:     filepath.Join(absPath, boilr.TemplateDirName),
+		Context: ctxt,
+		FuncMap: FuncMap,
+		Path:    filepath.Join(absPath, boilr.TemplateDirName),
+
 		Metadata: md,
 	}, err
 }
 
 type dirTemplate struct {
-	Path     string
-	Context  map[string]interface{}
-	FuncMap  template.FuncMap
-	Metadata Metadata
+	Path          string
+	Context       map[string]interface{}
+	StoredContext map[string]interface{}
+	FuncMap       template.FuncMap
+	Metadata      Metadata
 
 	alignment         string
 	ShouldUseDefaults bool
+}
+
+func (t *dirTemplate) CachaedValuesFromJson(path string) error {
+	absPath, err := filepath.Abs(path)
+
+	if err != nil {
+		return err
+	}
+	fmt.Println(absPath)
+	// TODO make context optional
+	ctxt, err := func(fname string) (map[string]interface{}, error) {
+		f, err := os.Open(fname)
+		if err != nil {
+			if os.IsNotExist(err) {
+				fmt.Println("Not Found ->", fname)
+				return nil, nil
+			}
+			return nil, err
+		}
+		defer f.Close()
+		buf, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+		var metadata map[string]interface{}
+		if err := json.Unmarshal(buf, &metadata); err != nil {
+			return nil, err
+		}
+		return metadata, nil
+	}(absPath)
+	t.StoredContext = ctxt
+	return nil
 }
 
 func (t *dirTemplate) UseDefaultValues() {
@@ -110,49 +146,51 @@ func (t *dirTemplate) UseDefaultValues() {
 }
 
 func (t *dirTemplate) BindPrompts() {
-	for s, v := range t.Context {
-		if m, ok := v.(map[string]interface{}); ok {
-			advancedMode := prompt.New(s, false)
+	// load all variables from project.json and stored.json.
+	// order of list is importanat as we want to use variable functions from t.StoredContext
+	// it is importanat that all variable functions should be avaliable before template execution
+	// otherwise you will get an error like - panic: template: <file_name>: function "<variable>" not defined
 
-			for k, v2 := range m {
-				if t.ShouldUseDefaults {
-					t.FuncMap[k] = func() interface{} {
+	contextList := []map[string]interface{}{t.Context, t.StoredContext}
+	for _, ctx := range contextList {
+		for s, v := range ctx {
+			if m, ok := v.(map[string]interface{}); ok {
+				advancedMode := prompt.New(s, false)
+
+				for k, v2 := range m {
+					if t.ShouldUseDefaults {
 						switch v2 := v2.(type) {
-						// First is the default value if it's a slice
 						case []interface{}:
-							return v2[0]
+							t.FuncMap[k] = prompt.CachedValue(fmt.Sprintf("%v", v2[0]), v2[0], k)
+						default:
+							t.FuncMap[k] = prompt.CachedValue(fmt.Sprintf("%v", v2), v2, k)
 						}
+					} else {
+						v, p := v2, prompt.New(k, v2)
 
-						return v2
-					}
-				} else {
-					v, p := v2, prompt.New(k, v2)
+						t.FuncMap[k] = func() interface{} {
+							if val := advancedMode().(bool); val {
+								return p()
+							}
 
-					t.FuncMap[k] = func() interface{} {
-						if val := advancedMode().(bool); val {
-							return p()
+							return v
 						}
-
-						return v
 					}
 				}
+
+				continue
 			}
 
-			continue
-		}
-
-		if t.ShouldUseDefaults {
-			t.FuncMap[s] = func() interface{} {
+			if t.ShouldUseDefaults {
 				switch v := v.(type) {
-				// First is the default value if it's a slice
 				case []interface{}:
-					return v[0]
+					t.FuncMap[s] = prompt.CachedValue(fmt.Sprintf("%v", v[0]), v[0], s)
+				default:
+					t.FuncMap[s] = prompt.CachedValue(fmt.Sprintf("%v", v), v, s)
 				}
-
-				return v
+			} else {
+				t.FuncMap[s] = prompt.New(s, v)
 			}
-		} else {
-			t.FuncMap[s] = prompt.New(s, v)
 		}
 	}
 }

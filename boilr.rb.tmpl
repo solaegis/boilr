@@ -1,0 +1,12 @@
+class Boilr < Formula
+  desc "Boilerplate template manager that generates files or directories from template repositories"
+  homepage "https://github.com/solaegis/boilr"
+  url "https://github.com/solaegis/boilr/releases/download/v${VERIONS}/boilr-${VERSION}-darwin_amd64.tgz"
+  version "1.1.1"
+  sha256 "$(sha256sum boilr-mac | cut -d' ' -f1)"
+
+  def install
+    bin.install "boilr"
+  end
+end
+

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/solaegis/boilr/pkg/util/templateinput"
 	"github.com/solaegis/boilr/pkg/util/tlog"
 )
 
@@ -136,13 +137,32 @@ func New(fieldName string, defval interface{}) func() interface{} {
 			if err != nil {
 				tlog.Warn(err.Error())
 			}
-
 			cachedValue, err = prompt.EvaluateChoice(choice)
 			if err != nil {
 				tlog.Warn(err.Error())
 			}
+			templateinput.UserInput[fieldName] = cachedValue
 		}
 
+		return cachedValue
+	}
+}
+
+func CachedValue(value string, defval interface{}, key string) func() interface{} {
+	prompt := Func(defval)
+
+	var cachedValue interface{}
+	return func() interface{} {
+		if cachedValue == nil {
+			msg := prompt.PromptMessage(value)
+			tlog.Prompt(msg, defval)
+			var err error
+			cachedValue, err = prompt.EvaluateChoice(value)
+			if err != nil {
+				tlog.Warn(err.Error())
+			}
+		}
+		templateinput.UsedKeys[key] = cachedValue
 		return cachedValue
 	}
 }

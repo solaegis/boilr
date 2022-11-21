@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/solaegis/boilr/pkg/template"
 	"github.com/solaegis/boilr/pkg/util/exit"
 	"github.com/solaegis/boilr/pkg/util/osutil"
+	"github.com/solaegis/boilr/pkg/util/templateinput"
 	"github.com/solaegis/boilr/pkg/util/validate"
 )
 
@@ -64,6 +66,16 @@ var Use = &cli.Command{
 			exit.Fatal(fmt.Errorf("use: %s", err))
 		}
 
+		contextFile := GetStringFlag(cmd, "use-file")
+		if contextFile != "" {
+
+			err := tmpl.CachaedValuesFromJson(contextFile)
+			if err != nil {
+				exit.Fatal(fmt.Errorf("error reading values value frrom %s", contextFile))
+			}
+			tmpl.UseDefaultValues()
+		}
+
 		if shouldUseDefaults := GetBoolFlag(cmd, "use-defaults"); shouldUseDefaults {
 			tmpl.UseDefaultValues()
 		}
@@ -96,6 +108,56 @@ var Use = &cli.Command{
 
 		if err := executeTemplate(); err != nil {
 			exit.Fatal(fmt.Errorf("use: %v", err))
+		}
+
+		// store promted inputs in a json file
+		jsonFile := GetStringFlag(cmd, "json-file")
+		if jsonFile != "" {
+			file, err := json.MarshalIndent(templateinput.UserInput, "", "  ")
+			if err != nil {
+				exit.Fatal(fmt.Errorf("use: %v", err))
+			}
+			if err := ioutil.WriteFile(jsonFile, file, 0644); err != nil {
+				exit.Fatal(fmt.Errorf("use: %v", err))
+			}
+		}
+
+		if contextFile != "" {
+			f, err := os.Open(contextFile)
+			if err != nil {
+				if os.IsNotExist(err) {
+					fmt.Println("could not find ", contextFile, " Please fix the error and run the boilr again.")
+					exit.Fatal(fmt.Errorf("use: %v", err))
+				}
+				fmt.Println("could not read ", contextFile, " Please fix the error and run the boilr again.")
+				exit.Fatal(fmt.Errorf("use: %v", err))
+			}
+			defer f.Close()
+			buf, err := ioutil.ReadAll(f)
+			if err != nil {
+				fmt.Println("could not read ", contextFile, " Please fix the error and run the boilr again.")
+				exit.Fatal(fmt.Errorf("use: %v", err))
+			}
+			var contextFileJson map[string]interface{}
+			if err := json.Unmarshal(buf, &contextFileJson); err != nil {
+				fmt.Println("could not read ", contextFile, " as a Joson. Please fix the error and run the boilr again.")
+				exit.Fatal(fmt.Errorf("use: %v", err))
+			}
+			returnError := false
+			for k, _ := range templateinput.UsedKeys {
+				if _, ok := contextFileJson[k]; !ok {
+					returnError = true
+					fmt.Printf(`
+********************************************************************************************************************
+boilr used project.json value for key %s. Please define the key and value in %s 
+********************************************************************************************************************`,
+						k, contextFile)
+				}
+			}
+			if returnError {
+				fmt.Println()
+				exit.Fatal(fmt.Errorf("Missing values in %s, please review the file", contextFile))
+			}
 		}
 
 		exit.OK("Successfully executed the project template %v in %v", tmplName, targetDir)
